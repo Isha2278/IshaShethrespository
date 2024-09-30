@@ -1,0 +1,151 @@
+package InsufficientFundsException;
+//Author: Isha Sheth
+
+class InsufficientFundsException extends Exception {
+ /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
+public InsufficientFundsException(String message) {
+     super(message);
+ }
+}
+
+abstract class Account {
+ protected Account next;
+
+ public void setNext(Account next) {
+     this.next = next;
+ }
+
+ public abstract void deduct(double amount) throws InsufficientFundsException;
+}
+
+class BankAccount extends Account {
+ private double balance;
+
+ public BankAccount(double balance) {
+     this.balance = balance;
+ }
+
+ public void makeDeposit(double amount) {
+     balance += amount;
+ }
+
+ @Override
+ public void deduct(double amount) throws InsufficientFundsException {
+     if (balance >= amount) {
+         balance -= amount;
+     } else if (next != null) {
+         double remainder = amount - balance;
+         balance = 0;
+         next.deduct(remainder);
+     } else {
+         throw new InsufficientFundsException("You have insufficient funds in your accounts.");
+     }
+ }
+
+ public double getBalance() {
+     return balance;
+ }
+}
+
+class CreditAccount extends Account {
+ private double balanceOwed;
+ private double creditLimit;
+
+ public CreditAccount(double creditLimit) {
+     this.creditLimit = creditLimit;
+     this.balanceOwed = 0;
+ }
+
+ public void charge(double amount) throws InsufficientFundsException {
+     if (balanceOwed + amount > creditLimit) {
+         throw new InsufficientFundsException("You have exceeded your credit limit.");
+     } else {
+         balanceOwed += amount;
+     }
+ }
+
+ @Override
+ public void deduct(double amount) throws InsufficientFundsException {
+     double availableCredit = creditLimit - balanceOwed;
+     if (availableCredit >= amount) {
+         balanceOwed += amount;
+     } else if (next != null) {
+         double remainder = amount - availableCredit;
+         balanceOwed = creditLimit;
+         next.deduct(remainder);
+     } else {
+         throw new InsufficientFundsException("You have insufficient funds in your accounts.");
+     }
+ }
+
+ public double getBalanceOwed() {
+     return balanceOwed;
+ }
+}
+
+class Customer {
+ private BankAccount checkingAccount;
+ private Account accounts;
+
+ public Customer(BankAccount checkingAccount) {
+     this.checkingAccount = checkingAccount;
+     this.accounts = checkingAccount;
+ }
+
+ public void addAccount(Account account) {
+     Account current = accounts;
+     while (current.next != null) {
+         current = current.next;
+     }
+     current.setNext(account);
+ }
+
+ public BankAccount getCheckingAccount() {
+     return checkingAccount;
+ }
+}
+
+class CheckProcessor {
+ public boolean processCheck(BankAccount checking, double amount) {
+     try {
+         checking.deduct(amount);
+         return true;
+     } catch (InsufficientFundsException e) {
+         System.out.println(e.getMessage());
+         return false;
+     }
+ }
+}
+
+public class Main {
+ public static void main(String[] args) {
+     // Author: Isha Sheth
+
+     // Create customer with a checking account with $200
+     Customer customer = new Customer(new BankAccount(200));
+
+     // Add a savings account with $50
+     customer.addAccount(new BankAccount(50));
+
+     // Add 3 credit accounts with a $50 limit each
+     customer.addAccount(new CreditAccount(50));
+     customer.addAccount(new CreditAccount(50));
+     customer.addAccount(new CreditAccount(50));
+
+     CheckProcessor processor = new CheckProcessor();
+
+     // Call the pay methods in order
+     System.out.println("Attempting to pay $150: ");
+     processor.processCheck(customer.getCheckingAccount(), 150);
+
+     System.out.println("\nAttempting to pay $220: ");
+     processor.processCheck(customer.getCheckingAccount(), 220);
+
+     System.out.println("\nAttempting to pay $5000: ");
+     processor.processCheck(customer.getCheckingAccount(), 5000);
+ }
+}
